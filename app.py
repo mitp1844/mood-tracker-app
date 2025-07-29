@@ -241,14 +241,14 @@ def login_page():
         # Get emojis for this welcome
         emojis = list(chosen_welcome["floating_emojis"])
         
-        # Create floating emoji HTML
-        floating_emoji_html = floating_emoji_css + """
-        <div class="floating-emoji emoji-1">""" + emojis[0] + """</div>
-        <div class="floating-emoji emoji-2">""" + emojis[1] + """</div>
-        <div class="floating-emoji emoji-3">""" + emojis[2] + """</div>
-        <div class="floating-emoji emoji-4">""" + emojis[0] + """</div>
-        <div class="floating-emoji emoji-5">""" + emojis[1] + """</div>
-        <div class="floating-emoji emoji-6">""" + emojis[2] + """</div>
+        # Create floating emoji HTML with simpler structure
+        floating_emoji_html = floating_emoji_css + f"""
+        <div class="floating-emoji emoji-1">{emojis[0]}</div>
+        <div class="floating-emoji emoji-2">{emojis[1]}</div>
+        <div class="floating-emoji emoji-3">{emojis[2]}</div>
+        <div class="floating-emoji emoji-4">{emojis[0]}</div>
+        <div class="floating-emoji emoji-5">{emojis[1]}</div>
+        <div class="floating-emoji emoji-6">{emojis[2]}</div>
         """
         
         # Display floating emojis

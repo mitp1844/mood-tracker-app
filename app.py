@@ -88,171 +88,42 @@ def login_page():
             {
                 "animation": "balloons",
                 "message": "💖 Booboo you are the best and most beautiful girl ever! 💖",
-                "style": "success",
-                "floating_emojis": "💖💕💝"
+                "style": "success"
             },
             {
                 "animation": "snow", 
                 "message": "💕 Sending you flying kisses and warm hugs, Booboo! 😘😘😘 💕",
-                "style": "info",
-                "floating_emojis": "😘💋💕"
+                "style": "info"
             },
             {
                 "animation": "balloons",
                 "message": "🤗 Big virtual hugs for the amazing Booboo! You light up the world! 🤗✨",
-                "style": "success",
-                "floating_emojis": "🤗🫂💪"
+                "style": "success"
             },
             {
                 "animation": "snow",
                 "message": "💖 BOOBOO 💖 You're absolutely wonderful and loved beyond measure! 🌟",
-                "style": "warning",
-                "floating_emojis": "🌟✨⭐"
+                "style": "warning"
             },
             {
                 "animation": "balloons", 
                 "message": "😘💕 Flying kisses your way, beautiful Booboo! You're incredible! 💕😘",
-                "style": "info",
-                "floating_emojis": "😘💋😍"
+                "style": "info"
             },
             {
                 "animation": "snow",
                 "message": "🌺 Booboo, you're like sunshine on a cloudy day! Sending love! 🌞💕",
-                "style": "success",
-                "floating_emojis": "🌞🌺🌸"
+                "style": "success"
             },
             {
                 "animation": "balloons",
                 "message": "💝 Special delivery of hugs and kisses for Booboo! You're amazing! 💝🤗",
-                "style": "warning",
-                "floating_emojis": "💝🎁🎉"
+                "style": "warning"
             }
         ]
         
         # Pick a random welcome experience
         chosen_welcome = random.choice(welcome_options)
-        
-        # Add floating emoji animation CSS
-        floating_emoji_css = f"""
-        <style>
-        .floating-emoji {{
-            position: fixed;
-            font-size: 2rem;
-            z-index: 9999;
-            pointer-events: none;
-            animation: float 4s ease-in-out infinite;
-        }}
-        
-        .emoji-1 {{ 
-            top: 10%; 
-            left: 10%; 
-            animation-delay: 0s;
-            animation: float1 6s linear infinite;
-        }}
-        .emoji-2 {{ 
-            top: 20%; 
-            left: 80%; 
-            animation-delay: 1s;
-            animation: float2 7s linear infinite;
-        }}
-        .emoji-3 {{ 
-            top: 60%; 
-            left: 15%; 
-            animation-delay: 2s;
-            animation: float3 8s linear infinite;
-        }}
-        .emoji-4 {{ 
-            top: 40%; 
-            left: 85%; 
-            animation-delay: 0.5s;
-            animation: float4 6.5s linear infinite;
-        }}
-        .emoji-5 {{ 
-            top: 80%; 
-            left: 50%; 
-            animation-delay: 1.5s;
-            animation: float5 7.5s linear infinite;
-        }}
-        .emoji-6 {{ 
-            top: 30%; 
-            left: 60%; 
-            animation-delay: 2.5s;
-            animation: float6 6s linear infinite;
-        }}
-        
-        @keyframes float1 {{
-            0% {{ transform: translateY(100vh) rotate(0deg); opacity: 0; }}
-            10% {{ opacity: 1; }}
-            90% {{ opacity: 1; }}
-            100% {{ transform: translateY(-100vh) rotate(360deg); opacity: 0; }}
-        }}
-        
-        @keyframes float2 {{
-            0% {{ transform: translateX(100vw) rotate(0deg); opacity: 0; }}
-            10% {{ opacity: 1; }}
-            90% {{ opacity: 1; }}
-            100% {{ transform: translateX(-100vw) rotate(-360deg); opacity: 0; }}
-        }}
-        
-        @keyframes float3 {{
-            0% {{ transform: translateY(100vh) translateX(-50px) rotate(0deg); opacity: 0; }}
-            10% {{ opacity: 1; }}
-            90% {{ opacity: 1; }}
-            100% {{ transform: translateY(-100vh) translateX(50px) rotate(360deg); opacity: 0; }}
-        }}
-        
-        @keyframes float4 {{
-            0% {{ transform: translateY(-100vh) rotate(0deg); opacity: 0; }}
-            10% {{ opacity: 1; }}
-            90% {{ opacity: 1; }}
-            100% {{ transform: translateY(100vh) rotate(-360deg); opacity: 0; }}
-        }}
-        
-        @keyframes float5 {{
-            0% {{ transform: translateX(-100vw) scale(0.5) rotate(0deg); opacity: 0; }}
-            10% {{ opacity: 1; }}
-            50% {{ transform: translateX(0vw) scale(1.2) rotate(180deg); }}
-            90% {{ opacity: 1; }}
-            100% {{ transform: translateX(100vw) scale(0.5) rotate(360deg); opacity: 0; }}
-        }}
-        
-        @keyframes float6 {{
-            0% {{ transform: translate(0, 100vh) rotate(0deg) scale(0.8); opacity: 0; }}
-            10% {{ opacity: 1; }}
-            25% {{ transform: translate(-100px, 50vh) rotate(90deg) scale(1.1); }}
-            50% {{ transform: translate(100px, 0vh) rotate(180deg) scale(1.3); }}
-            75% {{ transform: translate(-50px, -50vh) rotate(270deg) scale(1.1); }}
-            90% {{ opacity: 1; }}
-            100% {{ transform: translate(0, -100vh) rotate(360deg) scale(0.8); opacity: 0; }}
-        }}
-        
-        .pulse {{
-            animation: pulse 1.5s ease-in-out infinite;
-        }}
-        
-        @keyframes pulse {{
-            0% {{ transform: scale(1); }}
-            50% {{ transform: scale(1.1); }}
-            100% {{ transform: scale(1); }}
-        }}
-        </style>
-        """
-        
-        # Get emojis for this welcome
-        emojis = list(chosen_welcome["floating_emojis"])
-        
-        # Create floating emoji HTML with simpler structure
-        floating_emoji_html = floating_emoji_css + f"""
-        <div class="floating-emoji emoji-1">{emojis[0]}</div>
-        <div class="floating-emoji emoji-2">{emojis[1]}</div>
-        <div class="floating-emoji emoji-3">{emojis[2]}</div>
-        <div class="floating-emoji emoji-4">{emojis[0]}</div>
-        <div class="floating-emoji emoji-5">{emojis[1]}</div>
-        <div class="floating-emoji emoji-6">{emojis[2]}</div>
-        """
-        
-        # Display floating emojis
-        st.markdown(floating_emoji_html, unsafe_allow_html=True)
         
         # Show animation
         if chosen_welcome["animation"] == "balloons":
@@ -268,9 +139,9 @@ def login_page():
         elif chosen_welcome["style"] == "warning":
             st.warning(chosen_welcome["message"])
         
-        # Additional visual elements with pulse animation
+        # Simple emoji decoration without complex CSS
         st.markdown("""
-        <div style="text-align: center; font-size: 2em; margin: 20px 0;" class="pulse">
+        <div style="text-align: center; font-size: 2em; margin: 20px 0;">
             💕 🌟 💖 ✨ 🤗 😘 💝 🌺 💕
         </div>
         """, unsafe_allow_html=True)

@@ -148,7 +148,7 @@ def login_page():
         
         st.session_state.welcome_shown = True
     
-    st.title("🧠 Welcome to Mood Tracker")
+    st.title("Welcome to Mood Tracker")
     st.markdown("### Track your daily mood and mental wellness")
     
     tab1, tab2 = st.tabs(["🔑 Login", "📝 New User"])

@@ -531,10 +531,29 @@ def get_contextual_notification(average_mood, stress_level, current_entry, all_e
         message_parts.append(f"You're averaging {improvement:.1f} points higher this week than last - genuine progress! 📊")
     
     # Add day-specific context
-    if is_monday and mood_value >= 3:
-        message_parts.append("Starting the week with good energy - that's setting yourself up for success! 🚀")
-    elif is_weekend and mood_value <= 2:
-        message_parts.append("Weekend recovery time is important. Be gentle with yourself! 🛋️")
+    current_hour = datetime.now().hour
+    if 22 <= current_hour or current_hour < 6:  # Night time (10 PM - 6 AM)
+        if mood_value >= 3:
+            message_parts.append("Even at this late hour, your positive energy shines! 🌙")
+        elif mood_value == 2:
+            message_parts.append("Late night reflection time - sometimes neutral is perfect for winding down! 🌛")
+        else:
+            message_parts.append("Late nights can be tough, but you're taking care of yourself by tracking! 🌜")
+    elif 6 <= current_hour < 12:  # Morning
+        if mood_value >= 3:
+            message_parts.append("Starting the day with good energy - that's setting yourself up for success! 🌅")
+        else:
+            message_parts.append("Morning check-ins help set the tone for the day! 🌄")
+    elif 12 <= current_hour < 17:  # Afternoon
+        if mood_value >= 3:
+            message_parts.append("Keeping positive energy through the day - fantastic! ☀️")
+        else:
+            message_parts.append("Midday reflection shows great self-awareness! 🌞")
+    elif 17 <= current_hour < 22:  # Evening
+        if mood_value >= 3:
+            message_parts.append("Ending the day on a positive note - beautiful! 🌇")
+        else:
+            message_parts.append("Evening reflection is such a healthy habit! 🌆")
     
     # Add sleep context if available
     sleep = current_entry.get('sleep')
@@ -797,7 +816,7 @@ def main():
                 # Save updated notification history
                 save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications)
             elif filled_moods:
-                # Show encouraging message for partial mood data
+                # Show encouraging message for partial mood data without setting notification
                 st.session_state.save_status += "\n🌟 Great start! Feel free to add more mood data throughout the day."
         
         # Display save status if it exists

@@ -661,86 +661,161 @@ def main():
     if view == "📝 New Entry":
         st.header("Track Your Mood")
         
-        with st.form("mood_entry"):
-            # Date selection
-            entry_date = st.date_input("Date", value=date.today())
-            
-            st.subheader("Mood by Time Period")
-            
-            # Create columns for time slots
-            cols = st.columns(3)
-            mood_data = {}
-            
-            for i, (time_label, slot_key) in enumerate(TIME_SLOTS):
-                with cols[i % 3]:
-                    mood_data[slot_key] = st.selectbox(
-                        time_label,
-                        options=[""] + list(MOOD_OPTIONS.keys()),
-                        format_func=lambda x: f"{x} {MOOD_OPTIONS[x]['label']}" if x else "Select mood",
-                        key=slot_key
-                    )
-            
-            # Additional fields
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                emotions = st.text_input("Emotions Felt", placeholder="e.g., anxious, excited, calm")
-                sleep_hours = st.number_input("Sleep (hours)", min_value=0.0, max_value=24.0, step=0.5, value=8.0)
-            
-            with col2:
-                stress_level = st.selectbox("Stress Level", options=[1, 2, 3, 4, 5])
-                activity = st.text_input("Activity Done", placeholder="e.g., exercise, work, socializing")
-            
-            notes = st.text_area("Notes / Triggers", placeholder="What affected your mood today?")
-            
-            submitted = st.form_submit_button("💾 Save Entry", type="primary")
-            
-            if submitted:
-                # Calculate average mood
-                entry = {
-                    'date': entry_date.strftime('%Y-%m-%d'),
-                    'emotions': emotions,
-                    'sleep': sleep_hours,
-                    'stress': stress_level,
-                    'activity': activity,
-                    'notes': notes
-                }
-                entry.update(mood_data)
+        # Date selection (outside form for immediate response)
+        entry_date = st.date_input("Date", value=date.today(), key="entry_date")
+        
+        # Check if entry already exists for this date
+        existing_entry = None
+        for entry in st.session_state.entries:
+            if entry['date'] == entry_date.strftime('%Y-%m-%d'):
+                existing_entry = entry
+                break
+        
+        # Show info if entry exists
+        if existing_entry:
+            st.info(f"📝 Updating existing entry for {entry_date.strftime('%B %d, %Y')}")
+        
+        st.subheader("Mood by Time Period")
+        st.caption("💡 Tip: You can fill in just one time slot and save! Come back anytime to add more.")
+        
+        # Create columns for time slots
+        cols = st.columns(3)
+        mood_data = {}
+        
+        for i, (time_label, slot_key) in enumerate(TIME_SLOTS):
+            with cols[i % 3]:
+                # Pre-fill with existing data if available
+                current_value = existing_entry.get(slot_key, "") if existing_entry else ""
                 
+                # Use unique keys for each mood selector
+                mood_data[slot_key] = st.selectbox(
+                    time_label,
+                    options=[""] + list(MOOD_OPTIONS.keys()),
+                    format_func=lambda x: f"{x} {MOOD_OPTIONS[x]['label']}" if x else "Not filled yet",
+                    key=f"{slot_key}_{entry_date}",  # Unique key per date
+                    index=list([""] + list(MOOD_OPTIONS.keys())).index(current_value) if current_value in [""] + list(MOOD_OPTIONS.keys()) else 0
+                )
+        
+        # Additional fields
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            emotions = st.text_input(
+                "Emotions Felt", 
+                placeholder="e.g., anxious, excited, calm",
+                value=existing_entry.get('emotions', '') if existing_entry else '',
+                key=f"emotions_{entry_date}"
+            )
+            sleep_hours = st.number_input(
+                "Sleep (hours)", 
+                min_value=0.0, 
+                max_value=24.0, 
+                step=0.5, 
+                value=float(existing_entry.get('sleep', 8.0)) if existing_entry and existing_entry.get('sleep') else 8.0,
+                key=f"sleep_{entry_date}"
+            )
+        
+        with col2:
+            stress_level = st.selectbox(
+                "Stress Level", 
+                options=[1, 2, 3, 4, 5],
+                index=int(existing_entry.get('stress', 1)) - 1 if existing_entry else 0,
+                key=f"stress_{entry_date}"
+            )
+            activity = st.text_input(
+                "Activity Done", 
+                placeholder="e.g., exercise, work, socializing",
+                value=existing_entry.get('activity', '') if existing_entry else '',
+                key=f"activity_{entry_date}"
+            )
+        
+        notes = st.text_area(
+            "Notes / Triggers", 
+            placeholder="What affected your mood today?",
+            value=existing_entry.get('notes', '') if existing_entry else '',
+            key=f"notes_{entry_date}"
+        )
+        
+        # Save button with dynamic text (outside form)
+        button_text = "💾 Update Entry" if existing_entry else "💾 Save Entry"
+        
+        # Initialize save status in session state if not exists
+        if 'save_status' not in st.session_state:
+            st.session_state.save_status = None
+        
+        if st.button(button_text, type="primary", key=f"save_btn_{entry_date}"):
+            # Calculate average mood (only from filled slots)
+            entry = {
+                'date': entry_date.strftime('%Y-%m-%d'),
+                'emotions': emotions,
+                'sleep': sleep_hours,
+                'stress': stress_level,
+                'activity': activity,
+                'notes': notes
+            }
+            entry.update(mood_data)
+            
+            # Calculate average mood only if at least one mood is filled
+            filled_moods = [mood for mood in mood_data.values() if mood]
+            if filled_moods:
                 average_mood = calculate_average_mood(entry)
                 entry['average_mood'] = average_mood
-                
-                # Check if entry already exists for this date
-                existing_index = -1
-                for i, existing_entry in enumerate(st.session_state.entries):
-                    if existing_entry['date'] == entry['date']:
-                        existing_index = i
-                        break
-                
-                if existing_index >= 0:
-                    st.session_state.entries[existing_index] = entry
-                    # Save data to file
-                    if save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications):
-                        st.success("Entry updated and saved successfully!")
-                    else:
-                        st.warning("Entry updated but couldn't save to file!")
+            else:
+                entry['average_mood'] = None
+            
+            # Check if entry already exists for this date
+            existing_index = -1
+            for i, existing_entry_check in enumerate(st.session_state.entries):
+                if existing_entry_check['date'] == entry['date']:
+                    existing_index = i
+                    break
+            
+            # Save the entry
+            if existing_index >= 0:
+                st.session_state.entries[existing_index] = entry
+                save_success = save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications)
+                if save_success:
+                    st.session_state.save_status = "✅ Entry updated and saved successfully!"
                 else:
-                    st.session_state.entries.append(entry)
-                    # Save data to file
-                    if save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications):
-                        st.success("Entry saved successfully!")
+                    st.session_state.save_status = "⚠️ Entry updated but couldn't save to file!"
+            else:
+                st.session_state.entries.append(entry)
+                save_success = save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications)
+                if save_success:
+                    if filled_moods:
+                        st.session_state.save_status = "✅ Entry saved successfully!"
                     else:
-                        st.warning("Entry added but couldn't save to file!")
-                
-                # Show positive notification
-                if average_mood:
-                    notification_msg = get_contextual_notification(average_mood, stress_level, entry, st.session_state.entries)
-                    st.session_state.notification_message = notification_msg
-                    st.session_state.show_notification = True
-                    # Save updated notification history
-                    save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications)
-                
+                        st.session_state.save_status = "✅ Partial entry saved! You can add mood data anytime."
+                else:
+                    st.session_state.save_status = "⚠️ Entry added but couldn't save to file!"
+            
+            # Show positive notification only if we have mood data
+            if entry.get('average_mood'):
+                notification_msg = get_contextual_notification(entry['average_mood'], stress_level, entry, st.session_state.entries)
+                st.session_state.notification_message = notification_msg
+                st.session_state.show_notification = True
+                # Save updated notification history
+                save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications)
+            elif filled_moods:
+                # Show encouraging message for partial mood data
+                st.session_state.save_status += "\n🌟 Great start! Feel free to add more mood data throughout the day."
+        
+        # Display save status if it exists
+        if st.session_state.save_status:
+            if "✅" in st.session_state.save_status:
+                st.success(st.session_state.save_status)
+            elif "⚠️" in st.session_state.save_status:
+                st.warning(st.session_state.save_status)
+            else:
+                st.info(st.session_state.save_status)
+            
+            # Clear status after showing it
+            if st.button("✖️ Clear Status", key=f"clear_status_{entry_date}"):
+                st.session_state.save_status = None
                 st.rerun()
+        
+        # Add quick save info
+        st.caption("✨ You can save with just partial information and update it later!")
     
     # Chart View
     elif view == "📊 Chart View":

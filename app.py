@@ -79,12 +79,73 @@ def save_user_data(username, entries, used_notifications):
         return False
 
 def login_page():
-    """Simple login/signup page"""
+    """Simple login/signup page with randomized welcome experience"""
     
-    # Show special welcome message on first visit
+    # Show special welcome message on first visit with random animations
     if 'welcome_shown' not in st.session_state:
-        st.balloons()
-        st.success("💖 Booboo you are the best and most beautiful girl ever! 💖")
+        # Random welcome animations and messages
+        welcome_options = [
+            {
+                "animation": "balloons",
+                "message": "💖 Booboo you are the best and most beautiful girl ever! 💖",
+                "style": "success"
+            },
+            {
+                "animation": "snow", 
+                "message": "💕 Sending you flying kisses and warm hugs, Booboo! 😘😘😘 💕",
+                "style": "info"
+            },
+            {
+                "animation": "balloons",
+                "message": "🤗 Big virtual hugs for the amazing Booboo! You light up the world! 🤗✨",
+                "style": "success"
+            },
+            {
+                "animation": "snow",
+                "message": "💖 BOOBOO 💖 You're absolutely wonderful and loved beyond measure! 🌟",
+                "style": "warning"
+            },
+            {
+                "animation": "balloons", 
+                "message": "😘💕 Flying kisses your way, beautiful Booboo! You're incredible! 💕😘",
+                "style": "info"
+            },
+            {
+                "animation": "snow",
+                "message": "🌺 Booboo, you're like sunshine on a cloudy day! Sending love! 🌞💕",
+                "style": "success"
+            },
+            {
+                "animation": "balloons",
+                "message": "💝 Special delivery of hugs and kisses for Booboo! You're amazing! 💝🤗",
+                "style": "warning"
+            }
+        ]
+        
+        # Pick a random welcome experience
+        chosen_welcome = random.choice(welcome_options)
+        
+        # Show animation
+        if chosen_welcome["animation"] == "balloons":
+            st.balloons()
+        else:  # snow
+            st.snow()
+        
+        # Show message with chosen style
+        if chosen_welcome["style"] == "success":
+            st.success(chosen_welcome["message"])
+        elif chosen_welcome["style"] == "info":
+            st.info(chosen_welcome["message"])
+        elif chosen_welcome["style"] == "warning":
+            st.warning(chosen_welcome["message"])
+        
+        # Additional visual elements
+        st.markdown("""
+        <div style="text-align: center; font-size: 2em; margin: 20px 0;">
+            💕 🌟 💖 ✨ 🤗 😘 💝 🌺 💕
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.session_state.welcome_shown = True
     
     st.title("🧠 Welcome to Mood Tracker")

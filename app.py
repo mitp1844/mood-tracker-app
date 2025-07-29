@@ -6,6 +6,7 @@ from datetime import datetime, date
 import json
 import random
 import os
+import hashlib
 
 # Set page config
 st.set_page_config(
@@ -14,32 +15,42 @@ st.set_page_config(
     layout="wide"
 )
 
-# File paths for data storage
-DATA_FILE = "mood_tracker_data.json"
-NOTIFICATIONS_FILE = "mood_notifications.json"
+# Create data directory
+DATA_DIR = "mood_tracker_users"
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
-def load_data():
-    """Load mood entries and notification history from files"""
+def hash_username(username):
+    """Create a safe filename from username"""
+    return hashlib.md5(username.lower().encode()).hexdigest()
+
+def get_user_files(username):
+    """Get file paths for a specific user"""
+    user_hash = hash_username(username)
+    return {
+        'data': os.path.join(DATA_DIR, f"{user_hash}_data.json"),
+        'notifications': os.path.join(DATA_DIR, f"{user_hash}_notifications.json")
+    }
+
+def load_user_data(username):
+    """Load mood entries and notification history for a specific user"""
+    files = get_user_files(username)
     entries = []
     used_notifications = {1: [], 2: [], 3: [], 4: []}
     
     # Load mood entries
-    if os.path.exists(DATA_FILE):
+    if os.path.exists(files['data']):
         try:
-            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+            with open(files['data'], 'r', encoding='utf-8') as f:
                 entries = json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
             entries = []
     
     # Load notification history
-    if os.path.exists(NOTIFICATIONS_FILE):
+    if os.path.exists(files['notifications']):
         try:
-            with open(NOTIFICATIONS_FILE, 'r', encoding='utf-8') as f:
+            with open(files['notifications'], 'r', encoding='utf-8') as f:
                 used_notifications = json.load(f)
-                # Ensure all mood levels exist
-                for level in [1, 2, 3, 4]:
-                    if str(level) not in used_notifications:
-                        used_notifications[str(level)] = []
                 # Convert string keys back to integers
                 used_notifications = {int(k): v for k, v in used_notifications.items()}
         except (json.JSONDecodeError, FileNotFoundError):
@@ -47,16 +58,18 @@ def load_data():
     
     return entries, used_notifications
 
-def save_data(entries, used_notifications):
-    """Save mood entries and notification history to files"""
+def save_user_data(username, entries, used_notifications):
+    """Save mood entries and notification history for a specific user"""
+    files = get_user_files(username)
+    
     try:
         # Save mood entries
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+        with open(files['data'], 'w', encoding='utf-8') as f:
             json.dump(entries, f, indent=2, ensure_ascii=False, default=str)
         
-        # Save notification history (convert int keys to strings for JSON)
+        # Save notification history
         notifications_to_save = {str(k): v for k, v in used_notifications.items()}
-        with open(NOTIFICATIONS_FILE, 'w', encoding='utf-8') as f:
+        with open(files['notifications'], 'w', encoding='utf-8') as f:
             json.dump(notifications_to_save, f, indent=2, ensure_ascii=False)
         
         return True
@@ -64,9 +77,73 @@ def save_data(entries, used_notifications):
         st.error(f"Error saving data: {e}")
         return False
 
-# Initialize session state with persistent data
+def login_page():
+    """Simple login/signup page"""
+    
+    # Show special welcome message on first visit
+    if 'welcome_shown' not in st.session_state:
+        st.balloons()
+        st.success("💖 Booboo you are the best and most beautiful girl ever! 💖")
+        st.session_state.welcome_shown = True
+    
+    st.title("🧠 Welcome to Mood Tracker")
+    st.markdown("### Track your daily mood and mental wellness")
+    
+    tab1, tab2 = st.tabs(["🔑 Login", "📝 New User"])
+    
+    with tab1:
+        st.subheader("Enter your username")
+        username = st.text_input("Username", key="login_username").strip()
+        
+        if st.button("🚀 Start Tracking", type="primary"):
+            if username:
+                if len(username) >= 3:
+                    st.session_state.username = username
+                    st.session_state.logged_in = True
+                    st.rerun()
+                else:
+                    st.error("Username must be at least 3 characters long")
+            else:
+                st.error("Please enter a username")
+    
+    with tab2:
+        st.subheader("Create new account")
+        new_username = st.text_input("Choose username", key="new_username").strip()
+        
+        if st.button("🎉 Create Account", type="primary"):
+            if new_username:
+                if len(new_username) >= 3:
+                    # Check if user data already exists
+                    files = get_user_files(new_username)
+                    if os.path.exists(files['data']):
+                        st.warning(f"User '{new_username}' already exists! Use the Login tab.")
+                    else:
+                        st.session_state.username = new_username
+                        st.session_state.logged_in = True
+                        st.success(f"Welcome {new_username}! Starting your mood tracking journey!")
+                        st.rerun()
+                else:
+                    st.error("Username must be at least 3 characters long")
+            else:
+                st.error("Please choose a username")
+    
+    st.markdown("---")
+    st.info("💡 **Tip:** Your username creates your personal mood tracking space. Choose something you'll remember!")
+
+# Initialize session state
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'username' not in st.session_state:
+    st.session_state.username = ""
+
+# Show login page if not logged in
+if not st.session_state.logged_in:
+    login_page()
+    st.stop()
+
+# Load user data when logged in
 if 'entries' not in st.session_state:
-    entries, used_notifications = load_data()
+    entries, used_notifications = load_user_data(st.session_state.username)
     st.session_state.entries = entries
     st.session_state.used_notifications = used_notifications
 
@@ -75,7 +152,7 @@ if 'show_notification' not in st.session_state:
 if 'notification_message' not in st.session_state:
     st.session_state.notification_message = ""
 
-# Mood options
+# Mood options and other constants (same as before)
 MOOD_OPTIONS = {
     "😞": {"label": "Sad", "value": 1},
     "😐": {"label": "Neutral", "value": 2},
@@ -113,116 +190,204 @@ def calculate_average_mood(entry):
     else:
         return "😄"
 
-def get_positive_notification(average_mood, stress_level):
-    """Generate unique positive notifications"""
-    mood_value = MOOD_OPTIONS[average_mood]["value"]
+def analyze_mood_patterns(entries, current_entry):
+    """Analyze user's mood patterns to provide contextual insights"""
+    if len(entries) < 2:
+        return {}
     
-    all_notifications = {
-        4: [  # Great mood - 15 unique messages
-            "🌟 Amazing! You're having a fantastic day! Keep up that positive energy!",
-            "✨ You're absolutely glowing today! Your great mood is inspiring!",
-            "🎉 What a wonderful day you're having! You're crushing it!",
-            "🌈 Your positivity is off the charts! You're a mood champion!",
-            "🚀 You're soaring high today! Your energy is contagious!",
-            "💫 Absolutely brilliant mood today! You're radiating happiness!",
-            "🌺 Your joy is beautiful to see! You're having an incredible day!",
-            "⭐ Outstanding! Your positive spirit is shining so bright!",
-            "🎊 Phenomenal mood today! You're living your best life!",
-            "🌞 You're like sunshine today! Your happiness is infectious!",
-            "🎯 Perfect mood management! You're absolutely nailing it!",
-            "🏆 Champion-level positivity today! You're unstoppable!",
-            "🌸 Your wonderful energy is blooming! What a magnificent day!",
-            "🎨 You're painting today with the brightest colors! Spectacular!",
-            "🌠 Your mood is stellar today! You're reaching for the stars!"
-        ],
-        3: [  # Good mood - 15 unique messages
-            "😊 You're doing great today! Your positive vibes are showing!",
-            "🌸 Nice work maintaining a good mood! You're handling things well!",
-            "⭐ Your good energy is shining through! Keep it up!",
-            "🌻 You're having a solid day! Your resilience is admirable!",
-            "👍 Excellent mood balance today! You're doing wonderfully!",
-            "🌿 Your positive outlook is refreshing! Great job today!",
-            "💚 Loving this good energy from you! You're thriving!",
-            "🌱 You're growing stronger every day! This mood shows it!",
-            "☀️ Your warmth is radiating today! Beautiful positive energy!",
-            "🎵 You're in harmony today! Your good mood is music to see!",
-            "🌊 Riding the good vibes perfectly! You're flowing beautifully!",
-            "🍀 Lucky to see you in such good spirits! Keep flourishing!",
-            "🎈 Your mood is lifting everyone around you! Wonderful work!",
-            "🌙 Peaceful and positive today! Your balance is inspiring!",
-            "🕊️ Your calm confidence is beautiful! You're soaring today!"
-        ],
-        2: [  # Neutral mood - 15 unique messages
-            "💪 You're staying steady today! Sometimes balance is exactly what we need!",
-            "🌱 Neutral days are okay too! You're managing things just fine!",
-            "🧘‍♀️ Finding your center today! Stability is a strength!",
-            "⚖️ You're keeping things balanced! That takes real skill!",
-            "🌿 Maintaining equilibrium today! Your steadiness is valuable!",
-            "🎯 Right on target with your emotional balance! Well done!",
-            "🌊 You're navigating today's waters smoothly! Great composure!",
-            "🏔️ Standing strong and steady today! Your stability rocks!",
-            "🌾 Growing at your own pace today! Consistency is powerful!",
-            "🎨 Neutral tones can be beautiful too! You're doing just fine!",
-            "🌍 Grounded and centered today! Your foundation is solid!",
-            "🕯️ Calm and collected! Your inner peace is showing!",
-            "🌉 Bridging emotions beautifully today! Your balance inspires!",
-            "🎭 Sometimes the quiet moments are the most meaningful!",
-            "🌤️ Partly cloudy can be perfect weather! You're doing great!"
-        ],
-        1: [  # Sad mood - 15 unique messages
-            "🌅 Tomorrow is a new day! You're stronger than you know!",
-            "💝 Be gentle with yourself today. You're doing the best you can!",
-            "🌿 Tough days help us appreciate the good ones. You've got this!",
-            "🤗 Remember: this feeling is temporary. You matter and you're valued!",
-            "🌱 Even flowers need rain to grow. You're cultivating strength!",
-            "💎 Pressure creates diamonds. You're becoming more resilient!",
-            "🌈 After every storm comes a rainbow. Brighter days are ahead!",
-            "🕊️ Your courage to feel deeply shows your beautiful heart!",
-            "🌊 Waves of emotion are natural. You're riding them with grace!",
-            "⭐ You're still shining, even on cloudy days! Never forget that!",
-            "🌳 Deep roots grow in difficult seasons. You're getting stronger!",
-            "💪 Your vulnerability today shows incredible bravery! You're amazing!",
-            "🌙 Rest in knowing that dawn always comes. You're not alone!",
-            "🎯 Acknowledging tough feelings is a sign of wisdom and growth!",
-            "🌺 Your sensitivity is a superpower, even when it hurts!"
-        ]
+    # Sort entries by date
+    sorted_entries = sorted(entries, key=lambda x: x['date'])
+    recent_entries = sorted_entries[-7:]  # Last 7 days
+    
+    analysis = {
+        'streak_info': {},
+        'trend_info': {},
+        'improvement_areas': [],
+        'strengths': [],
+        'comparison': {}
     }
     
-    # Low stress bonus messages
-    low_stress_bonus = [
-        " And kudos for keeping your stress levels manageable! 🧘‍♀️",
-        " Plus, you're handling stress like a pro! 💆‍♀️",
-        " Your stress management skills are on point! 🎯",
-        " Bonus points for staying calm under pressure! 🌊",
-        " Your zen-like approach to stress is admirable! ☯️",
-        " Love how you're keeping stress at bay! 🛡️",
-        " Your peaceful energy shows great stress control! 🕊️",
-        " Impressive stress management today! 🏆",
-        " You're mastering the art of staying relaxed! 🎨",
-        " Your chill vibes are absolutely perfect! ❄️"
-    ]
+    # Calculate streaks
+    current_mood_value = MOOD_OPTIONS.get(current_entry.get('average_mood'), {}).get('value', 0)
+    good_mood_streak = 0
+    total_entries = len(recent_entries)
     
-    available_messages = all_notifications[mood_value]
-    used_for_this_mood = st.session_state.used_notifications[mood_value]
+    for entry in reversed(recent_entries):
+        mood_val = MOOD_OPTIONS.get(entry.get('average_mood'), {}).get('value', 0)
+        if mood_val >= 3:  # Good or Great
+            good_mood_streak += 1
+        else:
+            break
     
-    # Get unused messages
-    unused_messages = [msg for msg in available_messages if msg not in used_for_this_mood]
+    analysis['streak_info'] = {
+        'good_mood_streak': good_mood_streak,
+        'total_recent_entries': total_entries
+    }
     
-    # If all messages used, reset and start over
-    if not unused_messages:
-        st.session_state.used_notifications[mood_value] = []
-        message_to_use = random.choice(available_messages)
+    # Analyze trends
+    if len(recent_entries) >= 3:
+        recent_moods = [MOOD_OPTIONS.get(e.get('average_mood'), {}).get('value', 0) for e in recent_entries[-3:]]
+        recent_stress = [e.get('stress', 3) for e in recent_entries[-3:]]
+        
+        mood_trend = 'improving' if recent_moods[-1] > recent_moods[0] else 'declining' if recent_moods[-1] < recent_moods[0] else 'stable'
+        stress_trend = 'increasing' if recent_stress[-1] > recent_stress[0] else 'decreasing' if recent_stress[-1] < recent_stress[0] else 'stable'
+        
+        analysis['trend_info'] = {
+            'mood_trend': mood_trend,
+            'stress_trend': stress_trend,
+            'avg_recent_mood': sum(recent_moods) / len(recent_moods),
+            'avg_recent_stress': sum(recent_stress) / len(recent_stress)
+        }
+    
+    # Find patterns and strengths
+    sleep_data = [e.get('sleep', 0) for e in recent_entries if e.get('sleep')]
+    if sleep_data:
+        avg_sleep = sum(sleep_data) / len(sleep_data)
+        if avg_sleep >= 7.5:
+            analysis['strengths'].append('good_sleep')
+        elif avg_sleep < 6:
+            analysis['improvement_areas'].append('sleep')
+    
+    # Stress management
+    stress_data = [e.get('stress', 3) for e in recent_entries]
+    if stress_data:
+        avg_stress = sum(stress_data) / len(stress_data)
+        if avg_stress <= 2:
+            analysis['strengths'].append('stress_management')
+        elif avg_stress >= 4:
+            analysis['improvement_areas'].append('stress')
+    
+    # Activity consistency
+    activities = [e.get('activity', '') for e in recent_entries if e.get('activity')]
+    if len(activities) >= 5:
+        analysis['strengths'].append('activity_tracking')
+    
+    # Compare to last week
+    if len(sorted_entries) >= 14:
+        last_week = sorted_entries[-14:-7]
+        this_week = sorted_entries[-7:]
+        
+        last_week_avg = sum(MOOD_OPTIONS.get(e.get('average_mood'), {}).get('value', 0) for e in last_week) / len(last_week)
+        this_week_avg = sum(MOOD_OPTIONS.get(e.get('average_mood'), {}).get('value', 0) for e in this_week) / len(this_week)
+        
+        analysis['comparison'] = {
+            'last_week_avg': last_week_avg,
+            'this_week_avg': this_week_avg,
+            'improvement': this_week_avg > last_week_avg
+        }
+    
+    return analysis
+
+def get_contextual_notification(average_mood, stress_level, current_entry, all_entries):
+    """Generate genuine, contextual notifications based on real-time analysis"""
+    mood_value = MOOD_OPTIONS[average_mood]["value"]
+    analysis = analyze_mood_patterns(all_entries, current_entry)
+    
+    # Get current date and time context
+    current_date = datetime.now()
+    day_of_week = current_date.strftime("%A")
+    is_weekend = day_of_week in ['Saturday', 'Sunday']
+    is_monday = day_of_week == 'Monday'
+    
+    # Build personalized message components
+    message_parts = []
+    
+    # Main mood acknowledgment
+    if mood_value == 4:  # Great
+        if analysis.get('streak_info', {}).get('good_mood_streak', 0) >= 3:
+            message_parts.append(f"🌟 That's {analysis['streak_info']['good_mood_streak']} days of great vibes in a row! You're on fire!")
+        else:
+            message_parts.append("🌟 What an amazing day! Your positive energy is radiating!")
+    
+    elif mood_value == 3:  # Good
+        if analysis.get('trend_info', {}).get('mood_trend') == 'improving':
+            message_parts.append("🌸 I love seeing your mood trending upward! You're building momentum!")
+        else:
+            message_parts.append("🌸 Solid good mood today! You're handling life with grace!")
+    
+    elif mood_value == 2:  # Neutral
+        if analysis.get('streak_info', {}).get('good_mood_streak', 0) > 0:
+            message_parts.append("💪 Taking a breather after some good days is totally normal. You're staying balanced!")
+        else:
+            message_parts.append("💪 Neutral can be exactly what you need right now. You're finding your center!")
+    
+    else:  # Sad
+        if analysis.get('trend_info', {}).get('mood_trend') == 'improving':
+            message_parts.append("🌅 I know today was tough, but I can see you're working through it. That takes real strength!")
+        else:
+            message_parts.append("🌅 Tough days are part of the journey. You're being brave by acknowledging how you feel!")
+    
+    # Add pattern-based insights
+    if analysis.get('strengths'):
+        if 'good_sleep' in analysis['strengths']:
+            message_parts.append("Your consistent good sleep is really paying off! 😴")
+        if 'stress_management' in analysis['strengths'] and stress_level <= 2:
+            message_parts.append("Your stress management skills are genuinely impressive! 🧘‍♀️")
+        if 'activity_tracking' in analysis['strengths']:
+            message_parts.append("I admire how consistently you're staying active! 🏃‍♀️")
+    
+    # Add contextual encouragement based on trends
+    trend_info = analysis.get('trend_info', {})
+    if trend_info.get('mood_trend') == 'improving':
+        message_parts.append("The upward trend in your mood this week is real progress! 📈")
+    elif trend_info.get('stress_trend') == 'decreasing':
+        message_parts.append("You're actually managing to reduce your stress levels - that's no small feat! 📉")
+    
+    # Add comparison insights
+    comparison = analysis.get('comparison', {})
+    if comparison.get('improvement'):
+        improvement = comparison['this_week_avg'] - comparison['last_week_avg']
+        message_parts.append(f"You're averaging {improvement:.1f} points higher this week than last - genuine progress! 📊")
+    
+    # Add day-specific context
+    if is_monday and mood_value >= 3:
+        message_parts.append("Starting the week with good energy - that's setting yourself up for success! 🚀")
+    elif is_weekend and mood_value <= 2:
+        message_parts.append("Weekend recovery time is important. Be gentle with yourself! 🛋️")
+    
+    # Add sleep context if available
+    sleep = current_entry.get('sleep')
+    if sleep:
+        if sleep >= 8 and mood_value >= 3:
+            message_parts.append(f"That {sleep}-hour sleep is clearly working for you! 💤")
+        elif sleep < 6 and mood_value <= 2:
+            message_parts.append("Getting more sleep might help - your body and mind deserve that rest! 😴")
+    
+    # Add activity context
+    activity = current_entry.get('activity', '').lower()
+    if activity:
+        if any(word in activity for word in ['exercise', 'walk', 'run', 'gym', 'sport']):
+            message_parts.append("That physical activity is such a mood booster! 💪")
+        elif any(word in activity for word in ['meditat', 'yoga', 'relax']):
+            message_parts.append("Taking time for mindfulness - your mental health thanks you! 🧘‍♀️")
+        elif any(word in activity for word in ['friend', 'social', 'family']):
+            message_parts.append("Social connection is such powerful medicine for the soul! 👥")
+    
+    # Add improvement suggestions (gently)
+    improvements = analysis.get('improvement_areas', [])
+    if mood_value <= 2 and 'sleep' in improvements:
+        message_parts.append("Consider prioritizing sleep this week - it might be the game-changer you need! 🌙")
+    elif 'stress' in improvements and stress_level >= 4:
+        message_parts.append("High stress is tough. Maybe try one small stress-reducing activity tomorrow? 🌿")
+    
+    # Combine message parts naturally
+    if len(message_parts) == 1:
+        final_message = message_parts[0]
+    elif len(message_parts) == 2:
+        final_message = f"{message_parts[0]} {message_parts[1]}"
     else:
-        message_to_use = random.choice(unused_messages)
+        final_message = f"{message_parts[0]} {message_parts[1]} {message_parts[2]}"
     
-    # Mark message as used
-    st.session_state.used_notifications[mood_value].append(message_to_use)
+    # Add encouraging close based on overall pattern
+    total_entries = len(all_entries)
+    if total_entries >= 7:
+        final_message += f" You've been tracking for {total_entries} days - that commitment to self-awareness is genuinely admirable! 🎯"
+    elif mood_value >= 3:
+        final_message += " Keep nurturing that positive energy! ✨"
+    else:
+        final_message += " Tomorrow is a fresh start, and you've got this! 🌱"
     
-    # Add bonus for low stress (1-2 stress level)
-    if stress_level <= 2:
-        message_to_use += random.choice(low_stress_bonus)
-    
-    return message_to_use
+    return final_message
 
 def create_chart(df):
     """Create mood vs stress chart"""
@@ -278,7 +443,16 @@ def create_chart(df):
 
 # Main app
 def main():
-    st.title("📊 Daily Mood Tracker")
+    # Header with user info
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.title(f"📊 {st.session_state.username}'s Mood Tracker")
+    with col2:
+        if st.button("🚪 Logout"):
+            # Clear session state
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
     
     # Show notification if exists
     if st.session_state.show_notification and st.session_state.notification_message:
@@ -289,7 +463,7 @@ def main():
     
     # Sidebar for navigation
     with st.sidebar:
-        st.header("Navigation")
+        st.header(f"👋 Hello, {st.session_state.username}!")
         view = st.radio("Choose View:", ["📝 New Entry", "📊 Chart View", "📋 Entry History"])
     
     # New Entry View
@@ -355,25 +529,25 @@ def main():
                 if existing_index >= 0:
                     st.session_state.entries[existing_index] = entry
                     # Save data to file
-                    if save_data(st.session_state.entries, st.session_state.used_notifications):
+                    if save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications):
                         st.success("Entry updated and saved successfully!")
                     else:
                         st.warning("Entry updated but couldn't save to file!")
                 else:
                     st.session_state.entries.append(entry)
                     # Save data to file
-                    if save_data(st.session_state.entries, st.session_state.used_notifications):
+                    if save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications):
                         st.success("Entry saved successfully!")
                     else:
                         st.warning("Entry added but couldn't save to file!")
                 
                 # Show positive notification
                 if average_mood:
-                    notification_msg = get_positive_notification(average_mood, stress_level)
+                    notification_msg = get_contextual_notification(average_mood, stress_level, entry, st.session_state.entries)
                     st.session_state.notification_message = notification_msg
                     st.session_state.show_notification = True
                     # Save updated notification history
-                    save_data(st.session_state.entries, st.session_state.used_notifications)
+                    save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications)
                 
                 st.rerun()
     
@@ -454,7 +628,7 @@ def main():
                         if st.button(f"🗑️ Delete", key=f"delete_{i}"):
                             st.session_state.entries.remove(entry)
                             # Save data after deletion
-                            if save_data(st.session_state.entries, st.session_state.used_notifications):
+                            if save_user_data(st.session_state.username, st.session_state.entries, st.session_state.used_notifications):
                                 st.success("Entry deleted and saved!")
                             else:
                                 st.warning("Entry deleted but couldn't save changes!")
@@ -466,7 +640,8 @@ def main():
         st.subheader("📁 Data Management")
         
         # Show data file status
-        if os.path.exists(DATA_FILE):
+        files = get_user_files(st.session_state.username)
+        if os.path.exists(files['data']):
             st.success("✅ Data file found")
             st.caption(f"📊 {len(st.session_state.entries)} entries saved")
         else:
@@ -477,6 +652,7 @@ def main():
             if st.button("📤 Export Data"):
                 # Create export data
                 export_data = {
+                    "username": st.session_state.username,
                     "entries": st.session_state.entries,
                     "export_date": datetime.now().isoformat(),
                     "total_entries": len(st.session_state.entries)
@@ -488,30 +664,9 @@ def main():
                 st.download_button(
                     label="💾 Download Backup",
                     data=json_str,
-                    file_name=f"mood_tracker_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    file_name=f"mood_tracker_{st.session_state.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                     mime="application/json"
                 )
-        
-        # Clear all data button (with confirmation)
-        if st.session_state.entries:
-            st.markdown("---")
-            if st.button("🗑️ Clear All Data", type="secondary"):
-                st.warning("⚠️ This will delete all your mood entries!")
-                if st.button("✅ Confirm Delete All", type="secondary"):
-                    st.session_state.entries = []
-                    st.session_state.used_notifications = {1: [], 2: [], 3: [], 4: []}
-                    
-                    # Delete data files
-                    try:
-                        if os.path.exists(DATA_FILE):
-                            os.remove(DATA_FILE)
-                        if os.path.exists(NOTIFICATIONS_FILE):
-                            os.remove(NOTIFICATIONS_FILE)
-                        st.success("All data cleared!")
-                    except Exception as e:
-                        st.error(f"Error clearing files: {e}")
-                    
-                    st.rerun()
     
     # Footer
     st.markdown("---")

@@ -678,127 +678,94 @@ def main():
                 # Create DataFrame
                 df = pd.DataFrame(export_data)
                 
-                # Create Excel file in memory
+                # Create Excel file using openpyxl (simpler, no extra dependencies)
                 output = BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    # Main data sheet
-                    df.to_excel(writer, sheet_name='Mood Data', index=False)
-                    
-                    # Summary statistics sheet
-                    if len(df) > 0:
-                        summary_data = {
-                            'Metric': [
-                                'Total Entries',
-                                'Date Range',
-                                'Most Common Mood',
-                                'Average Stress Level',
-                                'Average Sleep Hours',
-                                'Days Tracked',
-                                'Good/Great Days (%)',
-                                'Low Stress Days (%)'
-                            ],
-                            'Value': []
-                        }
-                        
-                        # Calculate summary statistics
-                        total_entries = len(df)
-                        date_range = f"{df['Date'].min()} to {df['Date'].max()}"
-                        
-                        # Most common average mood
-                        mood_counts = df['Average Mood'].value_counts()
-                        most_common_mood = mood_counts.index[0] if len(mood_counts) > 0 else 'N/A'
-                        
-                        # Average stress (excluding empty values)
-                        stress_values = [x for x in df['Stress Level'] if pd.notna(x) and x != '']
-                        avg_stress = round(sum(stress_values) / len(stress_values), 1) if stress_values else 'N/A'
-                        
-                        # Average sleep (excluding empty values)
-                        sleep_values = [float(x) for x in df['Sleep Hours'] if pd.notna(x) and x != '']
-                        avg_sleep = round(sum(sleep_values) / len(sleep_values), 1) if sleep_values else 'N/A'
-                        
-                        # Days tracked
-                        days_tracked = len(df['Date'].unique())
-                        
-                        # Good/Great days percentage
-                        good_days = len(df[df['Average Mood'].isin(['Good', 'Great'])])
-                        good_days_pct = round((good_days / total_entries) * 100, 1) if total_entries > 0 else 0
-                        
-                        # Low stress days percentage
-                        low_stress_days = len(df[df['Stress Level'].isin([1, 2])])
-                        low_stress_pct = round((low_stress_days / total_entries) * 100, 1) if total_entries > 0 else 0
-                        
-                        summary_data['Value'] = [
-                            total_entries,
-                            date_range,
-                            most_common_mood,
-                            avg_stress,
-                            avg_sleep,
-                            days_tracked,
-                            f"{good_days_pct}%",
-                            f"{low_stress_pct}%"
-                        ]
-                        
-                        summary_df = pd.DataFrame(summary_data)
-                        summary_df.to_excel(writer, sheet_name='Summary', index=False)
-                        
-                        # Mood trends sheet (if enough data)
-                        if total_entries >= 7:
-                            # Create weekly averages
-                            df_copy = df.copy()
-                            df_copy['Date'] = pd.to_datetime(df_copy['Date'])
-                            df_copy = df_copy.sort_values('Date')
-                            
-                            # Map mood to numeric values for trending
-                            mood_to_num = {'Sad': 1, 'Neutral': 2, 'Good': 3, 'Great': 4}
-                            df_copy['Mood_Numeric'] = df_copy['Average Mood'].map(mood_to_num)
-                            
-                            # Create weekly groupings
-                            df_copy['Week'] = df_copy['Date'].dt.to_period('W').astype(str)
-                            weekly_stats = df_copy.groupby('Week').agg({
-                                'Mood_Numeric': 'mean',
-                                'Stress Level': 'mean',
-                                'Sleep Hours': lambda x: x.mean() if len([i for i in x if pd.notna(i) and i != '']) > 0 else None
-                            }).round(2)
-                            
-                            weekly_stats.columns = ['Average Mood Score', 'Average Stress', 'Average Sleep']
-                            weekly_stats.to_excel(writer, sheet_name='Weekly Trends')
-                    
-                    # Get workbook and worksheets for formatting
-                    workbook = writer.book
-                    
-                    # Format main data sheet
-                    worksheet1 = writer.sheets['Mood Data']
-                    
-                    # Add some basic formatting
-                    header_format = workbook.add_format({
-                        'bold': True,
-                        'bg_color': '#4F81BD',
-                        'font_color': 'white',
-                        'border': 1
-                    })
-                    
-                    # Write headers with formatting
-                    for col_num, value in enumerate(df.columns.values):
-                        worksheet1.write(0, col_num, value, header_format)
-                    
-                    # Auto-adjust column widths
-                    for i, col in enumerate(df.columns):
-                        max_length = max(
-                            df[col].astype(str).str.len().max(),
-                            len(str(col))
-                        )
-                        worksheet1.set_column(i, i, min(max_length + 2, 50))
                 
-                # Get the Excel data
-                excel_data = output.getvalue()
-                
-                # Create download button
-                st.download_button(
-                    label="📊 Download Excel Report",
-                    data=excel_data,
-                    file_name=f"mood_tracker_{st.session_state.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                try:
+                    # Try to create Excel with basic formatting
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        # Main data sheet
+                        df.to_excel(writer, sheet_name='Mood Data', index=False)
+                        
+                        # Summary statistics sheet
+                        if len(df) > 0:
+                            summary_data = {
+                                'Metric': [
+                                    'Total Entries',
+                                    'Date Range', 
+                                    'Most Common Mood',
+                                    'Average Stress Level',
+                                    'Average Sleep Hours',
+                                    'Days Tracked',
+                                    'Good/Great Days (%)',
+                                    'Low Stress Days (%)'
+                                ],
+                                'Value': []
+                            }
+                            
+                            # Calculate summary statistics
+                            total_entries = len(df)
+                            date_range = f"{df['Date'].min()} to {df['Date'].max()}"
+                            
+                            # Most common average mood
+                            mood_counts = df['Average Mood'].value_counts()
+                            most_common_mood = mood_counts.index[0] if len(mood_counts) > 0 else 'N/A'
+                            
+                            # Average stress (excluding empty values)
+                            stress_values = [x for x in df['Stress Level'] if pd.notna(x) and x != '']
+                            avg_stress = round(sum(stress_values) / len(stress_values), 1) if stress_values else 'N/A'
+                            
+                            # Average sleep (excluding empty values)
+                            sleep_values = [float(x) for x in df['Sleep Hours'] if pd.notna(x) and x != '']
+                            avg_sleep = round(sum(sleep_values) / len(sleep_values), 1) if sleep_values else 'N/A'
+                            
+                            # Days tracked
+                            days_tracked = len(df['Date'].unique())
+                            
+                            # Good/Great days percentage
+                            good_days = len(df[df['Average Mood'].isin(['Good', 'Great'])])
+                            good_days_pct = round((good_days / total_entries) * 100, 1) if total_entries > 0 else 0
+                            
+                            # Low stress days percentage
+                            low_stress_days = len(df[df['Stress Level'].isin([1, 2])])
+                            low_stress_pct = round((low_stress_days / total_entries) * 100, 1) if total_entries > 0 else 0
+                            
+                            summary_data['Value'] = [
+                                total_entries,
+                                date_range,
+                                most_common_mood,
+                                avg_stress,
+                                avg_sleep,
+                                days_tracked,
+                                f"{good_days_pct}%",
+                                f"{low_stress_pct}%"
+                            ]
+                            
+                            summary_df = pd.DataFrame(summary_data)
+                            summary_df.to_excel(writer, sheet_name='Summary', index=False)
+                    
+                    # Get the Excel data
+                    excel_data = output.getvalue()
+                    
+                    # Create download button
+                    st.download_button(
+                        label="📊 Download Excel Report",
+                        data=excel_data,
+                        file_name=f"mood_tracker_{st.session_state.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                    
+                except Exception as e:
+                    # Fallback to CSV if Excel fails
+                    st.warning("Excel export not available, downloading as CSV instead.")
+                    csv_data = df.to_csv(index=False)
+                    
+                    st.download_button(
+                        label="📊 Download CSV Report",
+                        data=csv_data,
+                        file_name=f"mood_tracker_{st.session_state.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv"
+                    )
     
     # Footer
     st.markdown("---")
